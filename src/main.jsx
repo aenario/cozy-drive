@@ -14,6 +14,14 @@ import { shouldEnableTracking, getTracker } from 'cozy-ui/react/helpers/tracker'
 import AppRoute from './components/AppRoute'
 import configureStore from './store/configureStore'
 
+// ------------------------------------------------------------------
+// -- BJA : for the hacked search-bar
+import SearchBar from './components/SearchBar'
+// -- \BJA
+// ------------------------------------------------------------------
+
+const loggerMiddleware = createLogger()
+
 if (__DEVELOPMENT__) {
   // Enables React dev tools for Preact
   // Cannot use import as we are in a condition
@@ -56,4 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
       </Provider>
     </I18n>
   ), root)
+
+  // ------------------------------------------------------------------
+  // -- BJA : fort the hacked search-bar
+  // insert a hacked search field in the cozy bar
+  setTimeout(() => { SearchBar.init(cozy.client) }, 200)
+  // -- \BJA
+  // ------------------------------------------------------------------
+
 })

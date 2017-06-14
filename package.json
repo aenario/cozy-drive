@@ -129,7 +129,9 @@
     "redux-logger": "^2.7.4",
     "redux-mock-store": "^1.2.1",
     "redux-raven-middleware": "^1.2.0",
-    "redux-thunk": "^2.1.0"
+    "redux-thunk": "^2.1.0",
+    "autocomplete.js":"*",
+    "fuzzaldrin-plus":"*"
   },
   "jest": {
     "moduleFileExtensions": [
