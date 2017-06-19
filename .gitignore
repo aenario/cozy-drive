@@ -6,6 +6,10 @@ yarn-error.log
 # Build
 build/
 
+# local storage for VM
+storage/
+db/
+
 
 # Locales
 **/locales/*

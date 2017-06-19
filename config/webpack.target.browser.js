@@ -18,6 +18,10 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
       __TARGET__: JSON.stringify('browser')
+    }),
+    new webpack.ProvidePlugin({
+      'PouchDB': 'pouchdb',
+      'pouchdbFind': 'pouchdb-find'
     })
   ]
 }
