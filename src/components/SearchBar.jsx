@@ -98,7 +98,14 @@ SearchBarCtrler.init = function (cozyClient) {
       }
     }
   ]).on('autocomplete:selected', function (event, suggestion, dataset) {
-    cozyClient.files.statByPath(suggestion.path)
+    console.log(suggestion)
+    var path
+    if (suggestion.type === 'file'){
+      path = suggestion.dirPath
+    }else{
+      path = suggestion.path
+    }
+    cozyClient.files.statByPath(path)
     .then(data => {
       window.location.href = '#/files/' + data._id
       searchInput.value = ''
@@ -111,34 +118,61 @@ SearchBarCtrler.init = function (cozyClient) {
 // ------------------------------------------------------------------
 // 4/ data
 
-// var fileDB;
-//
-// const root = document.querySelector('[role=application]')
-// const data = root.dataset
-// console.log('__DEVELOPMENT__',__DEVELOPMENT__);
-// const initialData = {
-//   cozyDomain:data.cozyDomain,
-//   cozyToken:data.cozyToken
-// }
-// cozyClient.init({
-//  cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
-//  token: data.cozyToken
-// })
-//
-//
-// const replicationOptions = {
-//   onError: () => {console.log('error lors de la création dela base')},  // pas appelé
-//   onComplete: () => {
-//     console.log('onComplete')
-//     fileDB = cozyClient.offline.getDatabase('io.cozy.files')
-//     printDB()
-//     cozyClient.init({
-//      cozyURL: initialData.cozyDomain,
-//      token: initialData.cozyToken
-//     })
-//   }
-// }
-// cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
+var fileDB
+const list = []
+
+const root = document.querySelector('[role=application]')
+const data = root.dataset
+console.log('__DEVELOPMENT__',__DEVELOPMENT__);
+const initialData = {
+  cozyDomain:data.cozyDomain,
+  cozyToken:data.cozyToken
+}
+cozyClient.init({
+ cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
+ token: data.cozyToken
+})
+
+const replicationOptions = {
+  onError: () => {console.log('error lors de la création dela base')},
+  onComplete: () => {
+    console.log('onComplete')
+    const dirDictionnary = {}
+    const fileList = []
+    fileDB = cozyClient.offline.getDatabase('io.cozy.files')
+    fileDB.allDocs( {include_docs: true, descending: true}, function(err, docs) {
+      // console.log('__ print DB : ' + someTxt + ' __');
+      console.log(err, docs.rows);
+      for (let doc of docs.rows) {
+        console.log(doc)
+        if (doc.doc.type === 'file') {
+          const file = {
+            type:'file',
+            path:doc.doc.name,
+            dir_id:doc.doc.dir_id
+          }
+          fileList.push(file)
+          list.push(file)
+        }else{
+          list.push({
+            type:'folder',
+            path:doc.doc.path
+          })
+          dirDictionnary[doc.id] = doc.doc.path
+        }
+      }
+      for (let file of fileList) {
+        file.dirPath = dirDictionnary[file.dir_id]
+        file.path = file.dirPath + '/' + file.path
+      }
+    })
+    // cozyClient.init({
+    //  cozyURL: initialData.cozyDomain,
+    //  token: initialData.cozyToken
+    // })
+  }
+}
+cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions )
 // cozyClient.offline.startRepeatedReplication('io.cozy.files', 15, replicationOptions)
 // lancement d'une replication
 // cozyClient.offline.replicateFromCozy(, replicationOptions).then( ()=>{
@@ -169,47 +203,47 @@ const printDB = (someTxt) => {
 }
 
 
-  const list = [
-    {'type': 'folder', 'path': '/Administratif/Finance/Banques'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/Française des Jeux'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/RATP'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Compta perso'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2014'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2015'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2016/Déclaration revenus'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2016'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2017'},
-    {'type': 'folder', 'path': '/Administratif/Finance/Impôts'},
-    {'type': 'folder', 'path': '/Administratif/Finance'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/CPAM/Relevés de remboursements'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/CPAM'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle/Contrats & Cotisatons'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle/Relevés de remboursements'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF/Contrats & Cotisatons'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF/Relevés de remboursements'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF'},
-    {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances'},
-    {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Bouygues Telecom'},
-    {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/EDF'},
-    {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Free mobile'},
-    {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Orange box'},
-    {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants'},
-    {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve/Bouygues Telecom'},
-    {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve/MAIF'},
-    {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve'},
-    {'type': 'folder', 'path': '/Administratif/Partagé par'},
-    {'type': 'folder', 'path': "/Administratif/Pièces d'identités"},
-    {'type': 'folder', 'path': '/Administratif'},
-    {'type': 'folder', 'path': '/Ecoles & Formations/Louise'},
-    {'type': 'folder', 'path': '/Ecoles & Formations/Moi'},
-    {'type': 'folder', 'path': '/Ecoles & Formations'},
-    {'type': 'folder', 'path': '/Photos/Partagées avec moi/partagé par Genevieve'},
-    {'type': 'folder', 'path': '/Photos/Partagées avec moi'},
-    {'type': 'folder', 'path': '/Photos/Provenant de mon mobile'},
-    {'type': 'folder', 'path': '/Photos'},
-    {'type': 'folder', 'path': '/Voyages & vacances'}]
+// const list = [
+//   {'type': 'folder', 'path': '/Administratif/Finance/Banques'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/Française des Jeux'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/RATP'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Compta perso'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2014'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2015'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2016/Déclaration revenus'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2016'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2017'},
+//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts'},
+//   {'type': 'folder', 'path': '/Administratif/Finance'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/CPAM/Relevés de remboursements'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/CPAM'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle/Contrats & Cotisatons'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle/Relevés de remboursements'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF/Contrats & Cotisatons'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF/Relevés de remboursements'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF'},
+//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances'},
+//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Bouygues Telecom'},
+//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/EDF'},
+//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Free mobile'},
+//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Orange box'},
+//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants'},
+//   {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve/Bouygues Telecom'},
+//   {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve/MAIF'},
+//   {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve'},
+//   {'type': 'folder', 'path': '/Administratif/Partagé par'},
+//   {'type': 'folder', 'path': "/Administratif/Pièces d'identités"},
+//   {'type': 'folder', 'path': '/Administratif'},
+//   {'type': 'folder', 'path': '/Ecoles & Formations/Louise'},
+//   {'type': 'folder', 'path': '/Ecoles & Formations/Moi'},
+//   {'type': 'folder', 'path': '/Ecoles & Formations'},
+//   {'type': 'folder', 'path': '/Photos/Partagées avec moi/partagé par Genevieve'},
+//   {'type': 'folder', 'path': '/Photos/Partagées avec moi'},
+//   {'type': 'folder', 'path': '/Photos/Provenant de mon mobile'},
+//   {'type': 'folder', 'path': '/Photos'},
+//   {'type': 'folder', 'path': '/Voyages & vacances'}]
   // const list = [
   //   {path:"/Administratif"},
   //   {path:"/Administratif/Bank statements"},
