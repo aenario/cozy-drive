@@ -108,8 +108,67 @@ SearchBarCtrler.init = function (cozyClient) {
     })
   })
 
-  // ------------------------------------------------------------------
-  // 4/ data
+// ------------------------------------------------------------------
+// 4/ data
+
+// var fileDB;
+//
+// const root = document.querySelector('[role=application]')
+// const data = root.dataset
+// console.log('__DEVELOPMENT__',__DEVELOPMENT__);
+// const initialData = {
+//   cozyDomain:data.cozyDomain,
+//   cozyToken:data.cozyToken
+// }
+// cozyClient.init({
+//  cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
+//  token: data.cozyToken
+// })
+//
+//
+// const replicationOptions = {
+//   onError: () => {console.log('error lors de la création dela base')},  // pas appelé
+//   onComplete: () => {
+//     console.log('onComplete')
+//     fileDB = cozyClient.offline.getDatabase('io.cozy.files')
+//     printDB()
+//     cozyClient.init({
+//      cozyURL: initialData.cozyDomain,
+//      token: initialData.cozyToken
+//     })
+//   }
+// }
+// cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
+// cozyClient.offline.startRepeatedReplication('io.cozy.files', 15, replicationOptions)
+// lancement d'une replication
+// cozyClient.offline.replicateFromCozy(, replicationOptions).then( ()=>{
+//   fileDB = cozyClient.offline.getDatabase('io.cozy.files')
+//   window.fileDB = fileDB
+//   printDB('db at .then')
+  // var todo = {
+  //   date: new Date().toISOString(),
+  //   title: 'some text',
+  //   completed: false
+  // };
+  // fileDB.post(todo, function callback(err, result) {
+  //   if (!err) {
+  //     console.log('Successfully posted a todo!', result);
+  //     printDB('db after creation of a todo')
+  //   }
+  // })
+// })
+
+// réplication toutes les 15s
+// cozyClient.offline.startRepeatedReplication('io.cozy.files', 15, replicationOptions)
+
+const printDB = (someTxt) => {
+  fileDB.allDocs( {include_docs: true, descending: true}, function(err, doc) {
+    console.log('__ print DB : ' + someTxt + ' __');
+    console.log(err, doc.rows);
+  })
+}
+
+
   const list = [
     {'type': 'folder', 'path': '/Administratif/Finance/Banques'},
     {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/Française des Jeux'},
