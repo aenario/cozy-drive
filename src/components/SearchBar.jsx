@@ -1,16 +1,27 @@
 import autocompleteAlgolia from 'autocomplete.js'
-import fuzzaldrinPlus from 'fuzzaldrin-plus'
+import fuzzyWordsSearch from '../lib/fuzzy-words-search-for-paths'
+import wordsBolderify from '../lib/words-bolderify'
+import {getClassFromMime} from './File'
+import debounce from '../lib/debounce'
+
 
 // ------------------------------------------------------------------
 // -- This module inserts in the Cozy Bar a search input.
-// -- autocomplete component :
+// -- autocomplete component : https://github.com/algolia/autocomplete.js
 // -- filter and sort  :
-// -- data : static in the source code
+// -- data : from pouchDB, synchronized with the server
 // ------------------------------------------------------------------
 
-const SearchBarCtrler = {}
+// TODO :
+// update the list of files when pouchDB is updated
+// deal ellipsis in filename and path displayed in suggestions menu.
 
-SearchBarCtrler.init = function (cozyClient) {
+const SearchBarCtrler = {}, MAX_RESULTS = 15
+var cozyClient, T0, T1, T2, T3, T4
+
+
+SearchBarCtrler.init = function (newCozyClient) {
+  cozyClient = newCozyClient
   // ------------------------------------------------------------------
   // 1/ HTML insertion in the bar
   const searchInput = document.createElement('input')
@@ -25,7 +36,7 @@ SearchBarCtrler.init = function (cozyClient) {
   searchBar.addEventListener('focusin', () => {
     searchBar.classList.add('focus-in')
     if (searchInput.previousValue) {
-      searchInput.value = searchInput.previousValue
+      autoComplete.setVal(searchInput.previousValue)
       searchInput.setSelectionRange(0, searchInput.value.length)
     }
   }, true)
@@ -33,77 +44,43 @@ SearchBarCtrler.init = function (cozyClient) {
   searchBar.addEventListener('focusout', function (event) {
     searchBar.classList.remove('focus-in')
     searchInput.previousValue = searchInput.value
-    searchInput.value = ''
+    autoComplete.setVal('')
   }, true)
 
+
   // ------------------------------------------------------------------
-  // 2/ prepare the Search options for fuzzaldrin
-  const fuzzaldrinPlusSearch = function (query, cb) {
-    const results = fuzzaldrinPlus.filter(list, query, {key: 'path', maxResults: 10})
-    for (let res of results) {
-      res.html = basiqueBolderify(query, res.path)
-    }
+  // 2/ prepare the search function for autocomplete.js
+  var currentQuery
+  const searchSuggestions = function (query, cb) {
+    currentQuery = query
+    var T1 = performance.now()
+    const results = fuzzyWordsSearch.search(query,MAX_RESULTS)
+    var T2 = performance.now()
+    console.log('search for "' + query + '" took ' + (T2-T1) + 'ms')
     cb(results)
   }
 
-  const basiqueBolderify = function (query, path) {
-    var words = query.split(' ')
-    words = words.filter(function (item) { return (item !== '') })
-    var startIndex = 0
-    var nextWordOccurence
-    var html = ''
-    const lastIndex = path.length
-    const pathLC = path.toLowerCase()
-    while (startIndex < lastIndex) {
-      nextWordOccurence = nextWord(path, pathLC, words, startIndex)
-      if (!nextWordOccurence) {
-        break
-      }
-      html += `${path.slice(startIndex, nextWordOccurence.start)}<b>${nextWordOccurence.word}</b>`
-      startIndex = nextWordOccurence.start + nextWordOccurence.word.length
-    }
-    html += path.slice(startIndex)
-    return html
-  }
-
-  const nextWord = function (path, pathLC, words, startIndex) {
-    var wordFound = ''
-    var i
-    var lowestIndexFound = 10000000
-
-    for (let w of words) {
-      i = pathLC.indexOf(w.toLowerCase(), startIndex)
-      if (i < lowestIndexFound && i > -1) {
-        lowestIndexFound = i
-        wordFound = w
-      }
-    }
-    if (lowestIndexFound === -1) {
-      return undefined
-    } else {
-      return {word: path.slice(lowestIndexFound, lowestIndexFound + wordFound.length), start: lowestIndexFound}
-    }
-  }
 
   // ------------------------------------------------------------------
-  // 3/ initialisation of the autocomplete component
-  autocompleteAlgolia('#search-bar-input', { hint: true }, [
+  // 3/ initialisation oautocompleteAlgolia('#search-bar-input', { hint: true }, [s
+  const autoComplete = autocompleteAlgolia('#search-bar-input', { hint: false, openOnFocus:true, autoselect:true, debug: true }, [
     {
-      source: fuzzaldrinPlusSearch,
-      displayKey: 'path',
+      source: debounce(searchSuggestions,150),
       templates: {
         suggestion: function (suggestion) {
-          return suggestion.html
+          let path = suggestion.path
+          if (suggestion.path=='') {path = '/'}
+          console.log('template');
+          var html = `<div class="${getClassFromMime(suggestion)} ac-suggestion-img"></div><div><div class="ac-suggestion-name">${wordsBolderify(currentQuery, suggestion.name)}</div class="aa-text-container"><div class="ac-suggestion-path">${wordsBolderify(currentQuery, path)}</div></div>`
+          return html
         }
       }
     }
   ]).on('autocomplete:selected', function (event, suggestion, dataset) {
-    console.log(suggestion)
-    var path
-    if (suggestion.type === 'file'){
-      path = suggestion.dirPath
-    }else{
-      path = suggestion.path
+    // a suggestion has been clicked by the user : change the displayed directory
+    let path = suggestion.path
+    if (suggestion.type == 'directory') {
+      path += '/'+ suggestion.name
     }
     cozyClient.files.statByPath(path)
     .then(data => {
@@ -111,176 +88,81 @@ SearchBarCtrler.init = function (cozyClient) {
       searchInput.value = ''
     }).catch(err => {
       searchInput.value = ''
-      console.log(err)
     })
+  // }).on('autocomplete:open', function () {
+  //   console.log("autocomplete:open");
+  // }).on('autocomplete:shown', function () {
+  //   console.log("autocomplete:shown");
+  // }).on('autocomplete:empty', function () {
+  //   console.log("autocomplete:empty");
+  // }).on('autocomplete:closed', function () {
+  //   console.log("autocomplete:closed");
+  // }).on('autocomplete:updated', function () {
+  //   console.log("autocomplete:updated");
+}).autocomplete
+
+
+  // ------------------------------------------------------------------
+  // 4/ DATA : replicate the file doctype and then prepare the list
+  // of paths for the search.
+
+  var
+    fileDB
+
+  const list = [],
+    root = document.querySelector('[role=application]'),
+    data = root.dataset,
+    initialData = {
+      cozyDomain:data.cozyDomain,
+      cozyToken:data.cozyToken
+    }
+
+  cozyClient.init({
+   cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
+   token: data.cozyToken
   })
 
-// ------------------------------------------------------------------
-// 4/ data
-
-var fileDB
-const list = []
-
-const root = document.querySelector('[role=application]')
-const data = root.dataset
-console.log('__DEVELOPMENT__',__DEVELOPMENT__);
-const initialData = {
-  cozyDomain:data.cozyDomain,
-  cozyToken:data.cozyToken
-}
-cozyClient.init({
- cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
- token: data.cozyToken
-})
-
-const replicationOptions = {
-  onError: () => {console.log('error lors de la création dela base')},
-  onComplete: () => {
-    console.log('onComplete')
-    const dirDictionnary = {}
-    const fileList = []
-    fileDB = cozyClient.offline.getDatabase('io.cozy.files')
-    fileDB.allDocs( {include_docs: true, descending: true}, function(err, docs) {
-      // console.log('__ print DB : ' + someTxt + ' __');
-      console.log(err, docs.rows);
-      for (let doc of docs.rows) {
-        console.log(doc)
-        if (doc.doc.type === 'file') {
-          const file = {
-            type:'file',
-            path:doc.doc.name,
-            dir_id:doc.doc.dir_id
+  const replicationOptions = {
+    onError: () => {console.log('error during pouchDB replication')},
+    onComplete: () => {
+      const dirDictionnary = {}
+      const fileList = []
+      fileDB = cozyClient.offline.getDatabase('io.cozy.files')
+      T1 = performance.now()
+      console.log('first replication took "' + (T1-T0) + 'ms')
+      fileDB.allDocs( {include_docs: true, descending: true}, function(err, docs) {
+        T2 = performance.now()
+        console.log('get all docs took "' + (T2-T1) + 'ms')
+        for (let row of docs.rows) {
+          if (row.doc.type === 'file') {
+            fileList.push(row.doc)
+            list.push(row.doc)
+          }else if(row.doc.type === 'directory'){
+            let fullPath = row.doc.path
+            dirDictionnary[row.id] = fullPath
+            // in couch, the path of a directory includes the directory name, what is
+            // inconsistent with the file path wich doesn't include the filename.
+            // Therefore we harmonize here by removing the dirname from the path.
+            row.doc.path = fullPath.substring(0, fullPath.lastIndexOf("/"))
+            list.push(row.doc)
           }
-          fileList.push(file)
-          list.push(file)
-        }else{
-          list.push({
-            type:'folder',
-            path:doc.doc.path
-          })
-          dirDictionnary[doc.id] = doc.doc.path
         }
-      }
-      for (let file of fileList) {
-        file.dirPath = dirDictionnary[file.dir_id]
-        file.path = file.dirPath + '/' + file.path
-      }
-    })
-    // cozyClient.init({
-    //  cozyURL: initialData.cozyDomain,
-    //  token: initialData.cozyToken
-    // })
+        for (let file of fileList) {
+          // file.dirPath = dirDictionnary[file.dir_id]
+          file.path = dirDictionnary[file.dir_id]
+        }
+        T3 = performance.now()
+        console.log('prepare the file paths took "' + (T3-T2) + 'ms')
+        fuzzyWordsSearch.init(list)
+        T4 = performance.now()
+        console.log('init of the search took "' + (T4-T3) + 'ms')
+      })
+    }
   }
-}
-cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions )
-// cozyClient.offline.startRepeatedReplication('io.cozy.files', 15, replicationOptions)
-// lancement d'une replication
-// cozyClient.offline.replicateFromCozy(, replicationOptions).then( ()=>{
-//   fileDB = cozyClient.offline.getDatabase('io.cozy.files')
-//   window.fileDB = fileDB
-//   printDB('db at .then')
-  // var todo = {
-  //   date: new Date().toISOString(),
-  //   title: 'some text',
-  //   completed: false
-  // };
-  // fileDB.post(todo, function callback(err, result) {
-  //   if (!err) {
-  //     console.log('Successfully posted a todo!', result);
-  //     printDB('db after creation of a todo')
-  //   }
-  // })
-// })
 
-// réplication toutes les 15s
-// cozyClient.offline.startRepeatedReplication('io.cozy.files', 15, replicationOptions)
-
-const printDB = (someTxt) => {
-  fileDB.allDocs( {include_docs: true, descending: true}, function(err, doc) {
-    console.log('__ print DB : ' + someTxt + ' __');
-    console.log(err, doc.rows);
-  })
+  T0 = performance.now()
+  cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions )
 }
 
-
-// const list = [
-//   {'type': 'folder', 'path': '/Administratif/Finance/Banques'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/Française des Jeux'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires/RATP'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Bulletins de salaires'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Compta perso'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2014'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2015'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2016/Déclaration revenus'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2016'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts/2017'},
-//   {'type': 'folder', 'path': '/Administratif/Finance/Impôts'},
-//   {'type': 'folder', 'path': '/Administratif/Finance'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/CPAM/Relevés de remboursements'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/CPAM'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle/Contrats & Cotisatons'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle/Relevés de remboursements'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/Harmonie Mutuelle'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF/Contrats & Cotisatons'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF/Relevés de remboursements'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances/MAIF'},
-//   {'type': 'folder', 'path': '/Administratif/Mutuelles & Assurances'},
-//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Bouygues Telecom'},
-//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/EDF'},
-//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Free mobile'},
-//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants/Orange box'},
-//   {'type': 'folder', 'path': '/Administratif/Opérateurs & Commerçants'},
-//   {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve/Bouygues Telecom'},
-//   {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve/MAIF'},
-//   {'type': 'folder', 'path': '/Administratif/Partagé par/Genevieve'},
-//   {'type': 'folder', 'path': '/Administratif/Partagé par'},
-//   {'type': 'folder', 'path': "/Administratif/Pièces d'identités"},
-//   {'type': 'folder', 'path': '/Administratif'},
-//   {'type': 'folder', 'path': '/Ecoles & Formations/Louise'},
-//   {'type': 'folder', 'path': '/Ecoles & Formations/Moi'},
-//   {'type': 'folder', 'path': '/Ecoles & Formations'},
-//   {'type': 'folder', 'path': '/Photos/Partagées avec moi/partagé par Genevieve'},
-//   {'type': 'folder', 'path': '/Photos/Partagées avec moi'},
-//   {'type': 'folder', 'path': '/Photos/Provenant de mon mobile'},
-//   {'type': 'folder', 'path': '/Photos'},
-//   {'type': 'folder', 'path': '/Voyages & vacances'}]
-  // const list = [
-  //   {path:"/Administratif"},
-  //   {path:"/Administratif/Bank statements"},
-  //   {path:"/Administratif/Bank statements/Bank Of America"},
-  //   {path:"/Administratif/Bank statements/Deutsche Bank"},
-  //   {path:"/Administratif/Bank statements/Société Générale"},
-  //   {path:"/Administratif/CPAM"},
-  //   {path:"/Administratif/EDF"},
-  //   {path:"/Administratif/EDF/Contrat"},
-  //   {path:"/Administratif/EDF/Factures"},
-  //   {path:"/Administratif/Emploi"},
-  //   {path:"/Administratif/Impôts"},
-  //   {path:"/Administratif/Logement"},
-  //   {path:"/Administratif/Logement/Loyer 158 rue de Verdun"},
-  //   {path:"/Administratif/Orange"},
-  //   {path:"/Administratif/Pièces identité"},
-  //   {path:"/Administratif/Pièces identité/Carte identité"},
-  //   {path:"/Administratif/Pièces identité/Passeport"},
-  //   {path:"/Administratif/Pièces identité/Permis de conduire"},
-  //   {path:"/Appareils photo"},
-  //   {path:"/Boulot"},
-  //   {path:"/Cours ISEN"},
-  //   {path:"/Cours ISEN/CIR"},
-  //   {path:"/Cours ISEN/CIR/LINUX"},
-  //   {path:"/Cours ISEN/CIR/MICROCONTROLEUR"},
-  //   {path:"/Cours ISEN/CIR/RESEAUX"},
-  //   {path:"/Cours ISEN/CIR/TRAITEMENT_SIGNAL"},
-  //   {path:"/Divers photo"},
-  //   {path:"/Divers photo/wallpapers"},
-  //   {path:"/Films"},
-  //   {path:"/Notes"},
-  //   {path:"/Notes/Communication"},
-  //   {path:"/Notes/Notes techniques"},
-  //   {path:"/Notes/Recrutement"},
-  //   {path:"/Projet appartement à Lyon"},
-  //   {path:"/Vacances Périgord"}
-  // ]
-}
 
 export default SearchBarCtrler
