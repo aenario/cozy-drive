@@ -28,7 +28,6 @@
         background-size: 1.5em
         outline: none
 
-
 .algolia-autocomplete .aa-input, .algolia-autocomplete .aa-hint
   width: 100%
 
@@ -37,28 +36,54 @@
 
 .algolia-autocomplete .aa-dropdown-menu
   background-color: #fff
-  border: 1px solid #c5c7c8
+  // border: 1px solid #c5c7c8
   border-bottom-left-radius: 6px
   border-bottom-right-radius: 6px
   margin-top: 0.5em
   left: -1em!important
   right: 0!important
+  box-shadow: 2px 3px 23px -3px rgba(0,0,0,0.7)
 
 .algolia-autocomplete .aa-dropdown-menu .aa-suggestion
+  height: 3.2em
   cursor: pointer
-  padding: 5px 4px
-  color: #989898
+  color: #373737
   white-space: normal
-  margin-bottom: 0.5em
   overflow: hidden
-  text-overflow: ellipsis
+  padding-left: 2.8em
+  display: flex
+  flex-direction: column
+  justify-content: center
+  border-bottom-style: solid
+  border-bottom-width: 1px
+  border-bottom-color: #d6d8da
+  border-left-style: solid
+  border-left-color: white
 
   b
     color: #297ef1
 
+.ac-suggestion-img
+  position: absolute
+  background-size: contain!important
+  width:2em
+  height:2em
+  left: 0.3em
+
+.ac-suggestion-name
+  text-overflow: ellipsis
+
+.ac-suggestion-path
+  font-size:0.7em
+  text-overflow: ellipsis
+  color: #737373
+  opacity: 0.7
+
 .algolia-autocomplete .aa-dropdown-menu .aa-suggestion.aa-cursor
-  background-color: #bcd0ff
+  background-color: #f0f0f0
   color: black
+  border-left-color: #297ef2
+
 
 .algolia-autocomplete .aa-dropdown-menu .aa-suggestion em
   font-weight: bold
