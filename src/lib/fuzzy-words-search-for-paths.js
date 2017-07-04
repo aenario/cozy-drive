@@ -41,54 +41,43 @@ let
   previousSuggestions=[]
 
 
-// ------------------------------------------------------------------
-// Main object, two methods : init() and search()
-module.exports = {
-
-  init : (newItemsList)=>{
-    list = newItemsList
-    for (let file of list) {
-      file.pathArray = removeDiacritics((file.path+'/'+file.name).toLowerCase()).split('/').filter(Boolean).reverse()
-    }
-  },
-
-  search: function (query, max_results) {
-    return _fuzzyWordsSearch(query, max_results)
-  }
-}
-
 
 // ------------------------------------------------------------------
 // Private methods
 
 // The main method. query is a string.
+// extract words from query, compare them to the words of previous query and
+// launch a new search or refine the previous one.
 const _fuzzyWordsSearch = function (query, max_results) {
-  // extract words from query, compare them to the words of previous query and
-  // launch a new search or refine the previous one.
-  const Query = []
-  if (query == '') return ''
-  for (let w of removeDiacritics(query.trim().toLowerCase()).split(' ').filter(Boolean)) {
-    Query.push({w:w, isAugmentedWord:false, isNewWord:true })
-  }
-  // console.log('\nprevious query :', _logQuery(currentQuery));
-  // console.log('new query      :', _logQuery(Query));
-  let {isQueryAugmented, priorizedWords} = _isAugmentingCurrentQuery(Query)
-  if (isQueryAugmented && (previousSuggestions.length != 0)) {
-    // the new query is just more selective than the previous one : refine the suggestions
-    // console.log("we update the suggestions");
-    // console.log('priorizedWords',_logQuery(priorizedWords));
+  if (query == '') return []
+  // 1 prepare the Query (array of words)
+  const Query =  _prepareQuery(query)
+  // 2 check if the new query is an augmentation of the previous
+  let [isQueryAugmented, priorizedWords] = _isAugmentingCurrentQuery(Query)
+  // 3 launch adapted filters on list of previous suggestions
+  if (isQueryAugmented && previousSuggestions.length != 0) {
+    // the new query is just more selective than the previous one : just refine the previous suggestions (if no previous suggestion : nothing to do)
+    console.log('we update the suggestions for priorizedWords',_logQuery(priorizedWords) )
     previousSuggestions = _filterAndScore(previousSuggestions, priorizedWords)
-  }else {
+  }else{
     // the new query is too different : run a new search
-    // console.log("we build a new suggestion")
+    console.log('we build a new suggestions for priorizedWords',_logQuery(priorizedWords) )
     previousSuggestions = _filterAndScore(list, priorizedWords)
   }
-  currentQuery = Query
   if (max_results) {
     return previousSuggestions.slice(0,max_results)
   }else {
     return previousSuggestions
   }
+}
+
+// cut the query string into an array of words
+const _prepareQuery = function(query){
+  const Query = []
+  for (let w of removeDiacritics(query.trim().toLowerCase()).split(' ').filter(Boolean)) {
+    Query.push({w:w, isAugmentedWord:false, isNewWord:true })
+  }
+  return Query
 }
 
 // returns a ranked array of [suggestions].
@@ -134,11 +123,13 @@ const _filterAndScore = function (list_items, words) {
   return suggestions
 }
 
-// in charge of checking if the query is augmented, ie there are only new words or
-// more preciser words (for instance "atom ele" became "atom elect neutrinos").
+// In charge of checking if the query is augmented.
+// If there are only new words or more preciser words (for
+// instance "atom ele" became "atom elect neutrinos").
 // returns {isQueryAugmented, priorizedWords}
-// where isQueryAugmented : Boolean
-/// priorizedWords : [Array] : [{w:'word'}...]
+// where
+//     isQueryAugmented : Boolean
+//     priorizedWords   : [Array] : [{w:'word'}...]
 const _isAugmentingCurrentQuery = function (query){
   var
     priorizedWords      = [],
@@ -161,8 +152,9 @@ const _isAugmentingCurrentQuery = function (query){
     if (!isIncluded) {
       // console.log("query is reinitialized because of", W);
       priorizedWords = _sortQuerybyLength(query)
+      currentQuery = query
       const isQueryAugmented = false
-      return {isQueryAugmented,priorizedWords}
+      return [isQueryAugmented,priorizedWords]
     }
   }
   // list the words of the new query that have been augmented
@@ -175,12 +167,14 @@ const _isAugmentingCurrentQuery = function (query){
   }
   // console.log("query is augmenting the previous one. Augmented words are :", _logQuery(priorizedWords))
   priorizedWords = _sortQuerybyLength(priorizedWords).concat(_sortQuerybyLength(isFromPreviousQuery))
-  return {isQueryAugmented:true,priorizedWords}
+  currentQuery = query
+  return [true,priorizedWords]
 }
 
+// sort by decreasing length
 const _sortQuerybyLength = function(query){
   query.sort(function(a,b){
-    b.w.length - a.w.length
+    return (b.w.length - a.w.length)
   })
   return query
 }
@@ -193,9 +187,31 @@ const _logSugggestions = function(suggestions){
 }
 
 const _logQuery = function (Query) {
-  res = []
+  let res = []
   for (let w of Query) {
     res.push(w.w)
   }
   return JSON.stringify(res);
+}
+
+
+// ------------------------------------------------------------------
+// Main public object, two methods : init() and search()
+module.exports = {
+
+  init : (newItemsList)=>{
+    list = newItemsList
+    for (let file of list) {
+      file.pathArray = removeDiacritics((file.path+'/'+file.name).toLowerCase()).split('/').filter(Boolean).reverse()
+    }
+  },
+
+  search: function (query, max_results) {
+    return _fuzzyWordsSearch(query, max_results)
+  },
+
+  // expose some funtions for the tests
+  _forTests:{
+    _fuzzyWordsSearch, _prepareQuery, _isAugmentingCurrentQuery
+  }
 }
