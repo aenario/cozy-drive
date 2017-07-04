@@ -6,7 +6,7 @@ yarn-error.log
 # Build
 build/
 
-# local storage for VM
+# cozy-app-dev : local storage for VM
 storage/
 db/
 
