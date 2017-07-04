@@ -117,9 +117,9 @@ SearchBarCtrler.init = function (newCozyClient) {
       cozyToken:data.cozyToken
     }
 
-  cozyClient.init({
-   cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
-   token: data.cozyToken
+  cozy.client.init({
+    cozyURL: '//' + data.cozyDomain,
+    token: data.cozyToken
   })
 
   const replicationOptions = {

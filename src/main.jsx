@@ -20,7 +20,7 @@ import SearchBar from './components/SearchBar'
 // -- \BJA
 // ------------------------------------------------------------------
 
-const loggerMiddleware = createLogger()
+// const loggerMiddleware = createLogger()
 
 if (__DEVELOPMENT__) {
   // Enables React dev tools for Preact
