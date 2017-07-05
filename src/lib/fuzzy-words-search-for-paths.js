@@ -1,16 +1,31 @@
 /**
 
+TODO
+- ajust scoring rules
+  - impact of the distance from the filename on the score
+  - impact of the path length : when searching 'D'  /D1 should be higher than /D1/D2
+  - turn into a class
+  - load tests Perfomances
+  - memory consumption
+
 ### Description
 Search for words occurences in paths of files.
 Occurence can occure in any order, but the closer from the filename is the occurence, the more it is considered relevant.
 Results are ranked by order of relevance.
+Perfomances :
+  - tested with 40.000 paths (file of 6 Mo) :
+    - Init in 0.251ms (when file is already loaded)
+    - a single caracter search in 0.128ms
+    - a 4 caracters search in 0.065ms
+    - ...
 
 ### Usage
 - \`fuzzyWordsSearch = require('fuzzy-words-search-for-paths')\`
-- \`fuzzyWordsSearch.init(itemList)\`
+- \`fuzzyWordsSearch.init(itemList, [max_results])\`
 - \`fuzzyWordsSearch.search(query)\`
 where :
 - itemList : an array of item of the form of : \`{"path":"/Administratif/Bank statements", "name":"bank-statement-01-2017.pdf"}\` (can include ofther properties, only path and name are required)
+- max_results : optionnal : an integer to limit the number of returned suggestions
 - query : the string with words to search for.
 
 ### Principles :

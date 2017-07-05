@@ -13,8 +13,11 @@ import debounce from '../lib/debounce'
 // ------------------------------------------------------------------
 
 // TODO :
-// update the list of files when pouchDB is updated
-// deal ellipsis in filename and path displayed in suggestions menu.
+// - test debounce is really working
+// - update the list of files when pouchDB is updated
+// - deal ellipsis in filename and path displayed in suggestions menu.
+// - use a second dataset to add suggestions for applications
+// - explore the suggestion formats of Cerebro (js launcher)
 
 const SearchBarCtrler = {}, MAX_RESULTS = 15
 var cozyClient, T0, T1, T2, T3, T4
@@ -116,9 +119,10 @@ SearchBarCtrler.init = function (newCozyClient) {
       cozyDomain:data.cozyDomain,
       cozyToken:data.cozyToken
     }
-
-  cozy.client.init({
-    cozyURL: '//' + data.cozyDomain,
+  window.PouchDB = PouchDB
+  window.pouchdbFind = pouchdbFind
+  cozyClient.init({
+    cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
     token: data.cozyToken
   })
 
