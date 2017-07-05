@@ -117,6 +117,10 @@ SearchBarCtrler.init = function (newCozyClient) {
       cozyToken:data.cozyToken
     }
 
+      // webpack is weird
+      window.PouchDB = PouchDB
+      window.pouchdbFind = pouchdbFind
+
   cozyClient.init({
    cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
    token: data.cozyToken
