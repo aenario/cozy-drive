@@ -14,7 +14,7 @@
     "internal:watch": "webpack --config webpack.config.js --watch --display-modules --display-chunks",
     "internal:watch:standalone": "webpack-dev-server --config webpack.config.js --port 8082 --display-modules --display-chunks --inline --hot",
     "tx": "tx pull --all || true",
-    "preinternal:build": "npm-run-all lint tx",
+    "preinternal:build": "npm-run-all  tx",
     "prebuild:browser": "npm run clean:browser",
     "prebuild:mobile": "npm run clean:mobile",
     "pretest": "npm run lint",

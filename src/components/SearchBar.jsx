@@ -1,9 +1,9 @@
+/* global PouchDB pouchdbFind */
 import autocompleteAlgolia from 'autocomplete.js'
 import fuzzyWordsSearch from '../lib/fuzzy-words-search-for-paths'
 import wordsBolderify from '../lib/words-bolderify'
 import {getClassFromMime} from './File'
 import debounce from '../lib/debounce'
-
 
 // ------------------------------------------------------------------
 // -- This module inserts in the Cozy Bar a search input.
@@ -19,9 +19,14 @@ import debounce from '../lib/debounce'
 // - use a second dataset to add suggestions for applications
 // - explore the suggestion formats of Cerebro (js launcher)
 
-const SearchBarCtrler = {}, MAX_RESULTS = 15
-var cozyClient, T0, T1, T2, T3, T4
-
+const SearchBarCtrler = {}
+const MAX_RESULTS = 15
+var cozyClient
+var T0
+var T1
+var T2
+var T3
+var T4
 
 SearchBarCtrler.init = function (newCozyClient) {
   cozyClient = newCozyClient
@@ -50,30 +55,28 @@ SearchBarCtrler.init = function (newCozyClient) {
     autoComplete.setVal('')
   }, true)
 
-
   // ------------------------------------------------------------------
   // 2/ prepare the search function for autocomplete.js
   var currentQuery
   const searchSuggestions = function (query, cb) {
     currentQuery = query
     var T1 = performance.now()
-    const results = fuzzyWordsSearch.search(query,MAX_RESULTS)
+    const results = fuzzyWordsSearch.search(query, MAX_RESULTS)
     var T2 = performance.now()
-    console.log('search for "' + query + '" took ' + (T2-T1) + 'ms')
+    console.log('search for "' + query + '" took ' + (T2 - T1) + 'ms')
     cb(results)
   }
 
-
   // ------------------------------------------------------------------
   // 3/ initialisation oautocompleteAlgolia('#search-bar-input', { hint: true }, [s
-  const autoComplete = autocompleteAlgolia('#search-bar-input', { hint: false, openOnFocus:true, autoselect:true, debug: true }, [
+  const autoComplete = autocompleteAlgolia('#search-bar-input', { hint: false, openOnFocus: true, autoselect: true, debug: true }, [
     {
-      source: debounce(searchSuggestions,150),
+      source: debounce(searchSuggestions, 150),
       templates: {
         suggestion: function (suggestion) {
           let path = suggestion.path
-          if (suggestion.path=='') {path = '/'}
-          console.log('template');
+          if (suggestion.path === '') { path = '/' }
+          console.log('template')
           var html = `<div class="${getClassFromMime(suggestion)} ac-suggestion-img"></div><div><div class="ac-suggestion-name">${wordsBolderify(currentQuery, suggestion.name)}</div class="aa-text-container"><div class="ac-suggestion-path">${wordsBolderify(currentQuery, path)}</div></div>`
           return html
         }
@@ -82,14 +85,14 @@ SearchBarCtrler.init = function (newCozyClient) {
   ]).on('autocomplete:selected', function (event, suggestion, dataset) {
     // a suggestion has been clicked by the user : change the displayed directory
     let path = suggestion.path
-    if (suggestion.type == 'directory') {
-      path += '/'+ suggestion.name
+    if (suggestion.type === 'directory') {
+      path += '/' + suggestion.name
     }
     cozyClient.files.statByPath(path)
     .then(data => {
       window.location.href = '#/files/' + data._id
       searchInput.value = ''
-    }).catch(err => {
+    }).catch(() => {
       searchInput.value = ''
     })
   // }).on('autocomplete:open', function () {
@@ -102,8 +105,7 @@ SearchBarCtrler.init = function (newCozyClient) {
   //   console.log("autocomplete:closed");
   // }).on('autocomplete:updated', function () {
   //   console.log("autocomplete:updated");
-}).autocomplete
-
+  }).autocomplete
 
   // ------------------------------------------------------------------
   // 4/ DATA : replicate the file doctype and then prepare the list
@@ -112,42 +114,42 @@ SearchBarCtrler.init = function (newCozyClient) {
   var
     fileDB
 
-  const list = [],
-    root = document.querySelector('[role=application]'),
-    data = root.dataset,
-    initialData = {
-      cozyDomain:data.cozyDomain,
-      cozyToken:data.cozyToken
-    }
+  const list = []
+  const root = document.querySelector('[role=application]')
+  const data = root.dataset
+  // const initialData = {
+  //   cozyDomain: data.cozyDomain,
+  //   cozyToken: data.cozyToken
+  // }
   window.PouchDB = PouchDB
   window.pouchdbFind = pouchdbFind
   cozyClient.init({
-    cozyURL: (__DEVELOPMENT__ ? 'http://' : 'https://' ) + data.cozyDomain,
+    cozyURL: '' + data.cozyDomain,
     token: data.cozyToken
   })
 
   const replicationOptions = {
-    onError: () => {console.log('error during pouchDB replication')},
+    onError: () => { console.log('error during pouchDB replication') },
     onComplete: () => {
       const dirDictionnary = {}
       const fileList = []
       fileDB = cozyClient.offline.getDatabase('io.cozy.files')
       T1 = performance.now()
-      console.log('first replication took "' + (T1-T0) + 'ms')
-      fileDB.allDocs( {include_docs: true, descending: true}, function(err, docs) {
+      console.log('first replication took "' + (T1 - T0) + 'ms')
+      fileDB.allDocs({include_docs: true, descending: true}, function (e, docs) {
         T2 = performance.now()
-        console.log('get all docs took "' + (T2-T1) + 'ms')
+        console.log('get all docs took "' + (T2 - T1) + 'ms')
         for (let row of docs.rows) {
           if (row.doc.type === 'file') {
             fileList.push(row.doc)
             list.push(row.doc)
-          }else if(row.doc.type === 'directory'){
+          } else if (row.doc.type === 'directory') {
             let fullPath = row.doc.path
             dirDictionnary[row.id] = fullPath
             // in couch, the path of a directory includes the directory name, what is
             // inconsistent with the file path wich doesn't include the filename.
             // Therefore we harmonize here by removing the dirname from the path.
-            row.doc.path = fullPath.substring(0, fullPath.lastIndexOf("/"))
+            row.doc.path = fullPath.substring(0, fullPath.lastIndexOf('/'))
             list.push(row.doc)
           }
         }
@@ -156,17 +158,16 @@ SearchBarCtrler.init = function (newCozyClient) {
           file.path = dirDictionnary[file.dir_id]
         }
         T3 = performance.now()
-        console.log('prepare the file paths took "' + (T3-T2) + 'ms')
+        console.log('prepare the file paths took "' + (T3 - T2) + 'ms')
         fuzzyWordsSearch.init(list)
         T4 = performance.now()
-        console.log('init of the search took "' + (T4-T3) + 'ms')
+        console.log('init of the search took "' + (T4 - T3) + 'ms')
       })
     }
   }
 
   T0 = performance.now()
-  cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions )
+  cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
 }
-
 
 export default SearchBarCtrler
