@@ -34,7 +34,7 @@ SearchBarCtrler.init = function (newCozyClient) {
   // 1/ HTML insertion in the bar
   const searchInput = document.createElement('input')
   searchInput.setAttribute('id', `search-bar-input`)
-  searchInput.setAttribute('placeholder', 'Search')
+  searchInput.setAttribute('placeholder', 'Search3')
   var target = document.querySelector('.coz-sep-flex')
   const searchBar = document.createElement('div')
   searchBar.setAttribute('id', 'search-bar')
@@ -124,7 +124,7 @@ SearchBarCtrler.init = function (newCozyClient) {
   window.PouchDB = PouchDB
   window.pouchdbFind = pouchdbFind
   cozyClient.init({
-    cozyURL: '' + data.cozyDomain,
+    cozyURL: '//' + data.cozyDomain,
     token: data.cozyToken
   })
 

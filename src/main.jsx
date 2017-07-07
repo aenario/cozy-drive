@@ -71,5 +71,4 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { SearchBar.init(cozy.client) }, 200)
   // -- \BJA
   // ------------------------------------------------------------------
-
 })
