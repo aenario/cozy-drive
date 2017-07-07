@@ -98,6 +98,7 @@ const _filterAndScore = function (listItems, words) {
   // console.log('\n === _filterAndScore', _logQuery(words));
   // console.log(listItems);
   const suggestions = []
+  // eslint-disable-next-line
   itemLoop:
   for (let item of listItems) {
     let itemScore = 0
@@ -114,6 +115,7 @@ const _filterAndScore = function (listItems, words) {
       }
       if (wScore === 0) {
         // w is not in the path : reject the item
+        // eslint-disable-next-line
         continue itemLoop
       }
       itemScore += wScore // increase the

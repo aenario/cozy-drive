@@ -34,7 +34,7 @@ SearchBarCtrler.init = function (newCozyClient) {
   // 1/ HTML insertion in the bar
   const searchInput = document.createElement('input')
   searchInput.setAttribute('id', `search-bar-input`)
-  searchInput.setAttribute('placeholder', 'Search3')
+  searchInput.setAttribute('placeholder', 'Search')
   var target = document.querySelector('.coz-sep-flex')
   const searchBar = document.createElement('div')
   searchBar.setAttribute('id', 'search-bar')
