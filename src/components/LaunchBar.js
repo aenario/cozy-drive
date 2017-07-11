@@ -6,7 +6,7 @@ import {getClassFromMime} from './File'
 import debounce from '../lib/debounce'
 
 // ------------------------------------------------------------------
-// -- This module inserts in the Cozy Bar a search input.
+// -- This module inserts in the Cozy Bar a launch input.
 // -- autocomplete component : https://github.com/algolia/autocomplete.js
 // -- filter and sort  :
 // -- data : from pouchDB, synchronized with the server
@@ -19,65 +19,66 @@ import debounce from '../lib/debounce'
 // - use a second dataset to add suggestions for applications
 // - explore the suggestion formats of Cerebro (js launcher)
 
-const SearchBarCtrler = {}
+const LaunchBarCtrler = {}
 const MAX_RESULTS = 15
-var cozyClient
-var T0
-var T1
-var T2
-var T3
-var T4
+let cozyClient
+let T0
+let T1
+let T2
+let T3
+let T4
 
-SearchBarCtrler.init = function (newCozyClient) {
+LaunchBarCtrler.init = function (newCozyClient) {
   cozyClient = newCozyClient
   // ------------------------------------------------------------------
   // 1/ HTML insertion in the bar
-  const searchInput = document.createElement('input')
-  searchInput.setAttribute('id', `search-bar-input`)
-  searchInput.setAttribute('placeholder', 'Search')
-  var target = document.querySelector('.coz-sep-flex')
-  const searchBar = document.createElement('div')
-  searchBar.setAttribute('id', 'search-bar')
-  searchBar.appendChild(searchInput)
-  target.parentElement.insertBefore(searchBar, target)
+  const launchInput = document.createElement('input')
+  launchInput.setAttribute('id', `launch-bar-input`)
+  launchInput.setAttribute('placeholder', 'Search')
+  let target = document.querySelector('.coz-sep-flex')
+  const launchBar = document.createElement('div')
+  launchBar.setAttribute('id', 'launch-bar')
+  launchBar.appendChild(launchInput)
+  target.parentElement.insertBefore(launchBar, target)
 
-  searchBar.addEventListener('focusin', () => {
-    searchBar.classList.add('focus-in')
-    if (searchInput.previousValue) {
-      autoComplete.setVal(searchInput.previousValue)
-      searchInput.setSelectionRange(0, searchInput.value.length)
+  launchBar.addEventListener('focusin', () => {
+    launchBar.classList.add('focus-in')
+    if (launchInput.previousValue) {
+      autoComplete.setVal(launchInput.previousValue)
+      launchInput.setSelectionRange(0, launchInput.value.length)
     }
   }, true)
 
-  searchBar.addEventListener('focusout', function (event) {
-    searchBar.classList.remove('focus-in')
-    searchInput.previousValue = searchInput.value
+  launchBar.addEventListener('focusout', function (event) {
+    launchBar.classList.remove('focus-in')
+    launchInput.previousValue = launchInput.value
     autoComplete.setVal('')
   }, true)
 
   // ------------------------------------------------------------------
   // 2/ prepare the search function for autocomplete.js
-  var currentQuery
-  const searchSuggestions = function (query, cb) {
+  let currentQuery
+  const launchSuggestions = function (query, cb) {
     currentQuery = query
-    var T1 = performance.now()
+    let T1 = performance.now()
     const results = fuzzyWordsSearch.search(query, MAX_RESULTS)
-    var T2 = performance.now()
+    let T2 = performance.now()
     console.log('search for "' + query + '" took ' + (T2 - T1) + 'ms')
     cb(results)
   }
 
   // ------------------------------------------------------------------
-  // 3/ initialisation oautocompleteAlgolia('#search-bar-input', { hint: true }, [s
-  const autoComplete = autocompleteAlgolia('#search-bar-input', { hint: false, openOnFocus: true, autoselect: true, debug: true }, [
+  // 3/ initialisation oautocompleteAlgolia('#launch-bar-input', { hint: true }, [s
+  const autoComplete = autocompleteAlgolia('#launch-bar-input', { hint: false, openOnFocus: true, autoselect: true, debug: true }, [
     {
-      source: debounce(searchSuggestions, 150),
+      source: debounce(launchSuggestions, 150),
+      key: 'fullPath',
       templates: {
         suggestion: function (suggestion) {
           let path = suggestion.path
           if (suggestion.path === '') { path = '/' }
           console.log('template')
-          var html = `<div class="${getClassFromMime(suggestion)} ac-suggestion-img"></div><div><div class="ac-suggestion-name">${wordsBolderify(currentQuery, suggestion.name)}</div class="aa-text-container"><div class="ac-suggestion-path">${wordsBolderify(currentQuery, path)}</div></div>`
+          let html = `<div class="${getClassFromMime(suggestion)} ac-suggestion-img"></div><div><div class="ac-suggestion-name">${wordsBolderify(currentQuery, suggestion.name)}</div class="aa-text-container"><div class="ac-suggestion-path">${wordsBolderify(currentQuery, path)}</div></div>`
           return html
         }
       }
@@ -91,9 +92,9 @@ SearchBarCtrler.init = function (newCozyClient) {
     cozyClient.files.statByPath(path)
     .then(data => {
       window.location.href = '#/files/' + data._id
-      searchInput.value = ''
+      launchInput.value = ''
     }).catch(() => {
-      searchInput.value = ''
+      launchInput.value = ''
     })
   // }).on('autocomplete:open', function () {
   //   console.log("autocomplete:open");
@@ -108,10 +109,9 @@ SearchBarCtrler.init = function (newCozyClient) {
   }).autocomplete
 
   // ------------------------------------------------------------------
-  // 4/ DATA : replicate the file doctype and then prepare the list
-  // of paths for the search.
-
-  var
+  // 4/ DATA FOR PATHS SEARCH : replicate the file doctype and then
+  // prepare the list of paths for the search.
+  let
     fileDB
 
   const list = []
@@ -168,6 +168,6 @@ SearchBarCtrler.init = function (newCozyClient) {
 
   T0 = performance.now()
   cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
-}
 
-export default SearchBarCtrler
+}
+export default LaunchBarCtrler

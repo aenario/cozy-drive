@@ -15,8 +15,8 @@ import AppRoute from './components/AppRoute'
 import configureStore from './store/configureStore'
 
 // ------------------------------------------------------------------
-// -- BJA : for the hacked search-bar
-import SearchBar from './components/SearchBar'
+// -- BJA : for the hacked launch-bar
+import LaunchBar from './components/LaunchBar'
 // -- \BJA
 // ------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ------------------------------------------------------------------
   // -- BJA : fort the hacked search-bar
   // insert a hacked search field in the cozy bar
-  setTimeout(() => { SearchBar.init(cozy.client) }, 200)
+  setTimeout(() => { LaunchBar.init(cozy.client) }, 200)
   // -- \BJA
   // ------------------------------------------------------------------
 })

@@ -1,12 +1,10 @@
 /**
-
 TODO
 - ajust scoring rules
   - impact of the distance from the filename on the score
   - impact of the path length : when searching 'D'  /D1 should be higher than /D1/D2
   - turn into a class
-  - load tests Perfomances
-  - memory consumption
+  - memory consumption : test and improvements
 
 ### Description
 Search for words occurences in paths of files.
@@ -46,181 +44,226 @@ where :
 
 */
 
-const
-  removeDiacritics = require('diacritics').remove
-
-let list
-let currentQuery = []
-let previousSuggestions = []
-
-// ------------------------------------------------------------------
-// Private methods
-
-// The main method. query is a string.
-// extract words from query, compare them to the words of previous query and
-// launch a new search or refine the previous one.
-const _fuzzyWordsSearch = function (query, maxResults) {
-  if (query === '') return []
-  // 1 prepare the Query (array of words)
-  const Query = _prepareQuery(query)
-  // 2 check if the new query is an augmentation of the previous
-  let [isQueryAugmented, priorizedWords] = _isAugmentingCurrentQuery(Query)
-  // 3 launch adapted filters on list of previous suggestions
-  if (isQueryAugmented && previousSuggestions.length !== 0) {
-    // the new query is just more selective than the previous one : just refine the previous suggestions (if no previous suggestion : nothing to do)
-    console.log('we update the suggestions for priorizedWords', _logQuery(priorizedWords))
-    previousSuggestions = _filterAndScore(previousSuggestions, priorizedWords)
-  } else {
-    // the new query is too different : run a new search
-    console.log('we build a new suggestions for priorizedWords', _logQuery(priorizedWords))
-    previousSuggestions = _filterAndScore(list, priorizedWords)
-  }
-  if (maxResults) {
-    return previousSuggestions.slice(0, maxResults)
-  } else {
-    return previousSuggestions
-  }
-}
-
-// cut the query string into an array of words
-const _prepareQuery = function (query) {
-  const Query = []
-  for (let w of removeDiacritics(query.trim().toLowerCase()).split(' ').filter(Boolean)) {
-    Query.push({ w: w, isAugmentedWord: false, isNewWord: true })
-  }
-  return Query
-}
-
-// returns a ranked array of [suggestions].
-// suggestion items are objects : {score:[number], ... (all the properties
-//   of an item given in init(newItemsList))}
-const _filterAndScore = function (listItems, words) {
-  // console.log('\n === _filterAndScore', _logQuery(words));
-  // console.log(listItems);
-  const suggestions = []
-  // eslint-disable-next-line
-  itemLoop:
-  for (let item of listItems) {
-    let itemScore = 0
-    for (let w of words) {
-      let wordOccurenceValue = 1
-      let wScore = 0
-      for (let dirName of item.pathArray) {
-        if (dirName.includes(w.w)) {
-          wScore += wordOccurenceValue
-        }
-        // the score of the occurence of a word decreases with distance from the leaf, but can not be too small
-        wordOccurenceValue -= 0.4
-        if (wordOccurenceValue === 0) wordOccurenceValue = 0.1
-      }
-      if (wScore === 0) {
-        // w is not in the path : reject the item
-        // eslint-disable-next-line
-        continue itemLoop
-      }
-      itemScore += wScore // increase the
-      // console.log(`\npath: "${item.path}", \nword: "${w.w}", itemScore:${itemScore}`);
-    }
-    if (itemScore !== 0) {
-      item.score = itemScore
-      // console.log("one found !", item);
-      suggestions.push(item)
-    }
-  }
-  // console.log('=== In the end, suggestions for query :', _logQuery(words))
-  suggestions.sort((s1, s2) => {
-    return s2.score - s1.score
-  })
-  // _logSugggestions(suggestions)
-  return suggestions
-}
-
-// In charge of checking if the query is augmented.
-// If there are only new words or more preciser words (for
-// instance "atom ele" became "atom elect neutrinos").
-// returns {isQueryAugmented, priorizedWords}
-// where
-//     isQueryAugmented : Boolean
-//     priorizedWords   : [Array] : [{w:'word'}...]
-const _isAugmentingCurrentQuery = function (query) {
-  var priorizedWords = []
-  var isFromPreviousQuery = []
-  // check that each word of the previous query is included in a word
-  // of the new query.
-  // Included means : 'spa' is in 'backspace' : true, 'spa' is in 'separate' : false
-  for (let W of currentQuery) {
-    let isIncluded = false
-    for (let w of query) {
-      if (w.w.includes(W.w)) {
-        isIncluded = true
-        if (w.w.length !== W.w.length) {
-          w.isAugmentedWord = true
-        } else {
-          w.isNewWord = false
-        }
-      }
-    }
-    if (!isIncluded) {
-      // console.log("query is reinitialized because of", W);
-      priorizedWords = _sortQuerybyLength(query)
-      currentQuery = query
-      const isQueryAugmented = false
-      return [isQueryAugmented, priorizedWords]
-    }
-  }
-  // list the words of the new query that have been augmented
-  for (let w of query) {
-    if (w.isNewWord || w.isAugmentedWord) {
-      priorizedWords.push(w)
-    } else {
-      isFromPreviousQuery.push(w)
-    }
-  }
-  // console.log("query is augmenting the previous one. Augmented words are :", _logQuery(priorizedWords))
-  priorizedWords = _sortQuerybyLength(priorizedWords).concat(_sortQuerybyLength(isFromPreviousQuery))
-  currentQuery = query
-  return [true, priorizedWords]
-}
-
-// sort by decreasing length
-const _sortQuerybyLength = function (query) {
-  query.sort(function (a, b) {
-    return (b.w.length - a.w.length)
-  })
-  return query
-}
-
-// const _logSugggestions = function (suggestions) {
-//   for (let sugg of suggestions) {
-//     console.log(`score:${sugg.score} "${sugg.path}"`)
-//   }
-// }
-
-const _logQuery = function (Query) {
-  let res = []
-  for (let w of Query) {
-    res.push(w.w)
-  }
-  return JSON.stringify(res)
-}
-
 // ------------------------------------------------------------------
 // Main public object, two methods : init() and search()
-module.exports = {
 
-  init: (newItemsList) => {
-    list = newItemsList
-    for (let file of list) {
-      file.pathArray = removeDiacritics((file.path + '/' + file.name).toLowerCase()).split('/').filter(Boolean).reverse()
+/* BLOCK:START */
+/* FOR DUPLICATION FOR DEBUG AND PERFORMANCE TESTS */
+const forDebugPackage = function () {
+  const removeDiacritics = require('diacritics').remove
+  let list
+  let previousQuery = []
+  let previousSuggestions = []
+
+  // ------------------------------------------------------------------
+  // Private methods
+
+  // The main method. query is a string.
+  // extract words from query, compare them to the words of previous query and
+  // launch a new search or refine the previous one.
+  const _fuzzyWordsSearch = function (query, maxResults) {
+    if (query === '') return []
+    // 1 prepare the Query (array of words)
+    const Query = _prepareQuery(query)
+    // 2 check if the new query is an augmentation of the previous
+    let [isQueryAugmented, priorizedWords] = _isAugmentingCurrentQuery(Query)
+    // 3 launch adapted filters on list of previous suggestions
+    if (isQueryAugmented && previousSuggestions.length !== 0) {
+      // the new query is just more selective than the previous one : just refine the previous suggestions (if no previous suggestion : nothing to do)
+      // console.log('we update the suggestions for priorizedWords', _logQuery(priorizedWords))
+      previousSuggestions = _filterAndScore(previousSuggestions, priorizedWords)
+    } else {
+      // the new query is too different : run a new search
+      // console.log('we build a new suggestions for priorizedWords', _logQuery(priorizedWords))
+      previousSuggestions = _filterAndScore(list, priorizedWords)
     }
-  },
+    if (maxResults) {
+      return previousSuggestions.slice(0, maxResults)
+    } else {
+      return previousSuggestions
+    }
+  }
 
-  search: function (query, maxResults) {
-    return _fuzzyWordsSearch(query, maxResults)
-  },
+  // cut the query string into an array of words
+  const _prepareQuery = function (query) {
+    const Query = []
+    for (let w of removeDiacritics(query.trim().toLowerCase()).split(' ').filter(Boolean)) {
+      Query.push({ w: w, isAugmentedWord: false, isNewWord: true })
+    }
+    return Query
+  }
 
-  // expose some funtions for the tests
-  _forTests: {
-    _fuzzyWordsSearch, _prepareQuery, _isAugmentingCurrentQuery
+  // SAVE THE SEARCH WITH 1RST LOGIC
+  // // returns a ranked array of [suggestions].
+  // // suggestion items are objects : {score:[number], ... (all the properties
+  // //   of an item given in init(newItemsList))}
+  // const _filterAndScore = function (listItems, words) {
+  //   const suggestions = []
+  //   // eslint-disable-next-line
+  //   itemLoop:
+  //   for (let item of listItems) {
+  //     let itemScore = 0
+  //     for (let w of words) {
+  //       let wordOccurenceValue = 52428800 // 52 428 800 === 2^19 * 100
+  //       let wScore = 0
+  //       for (let dirName of item.pathArray) {
+  //         if (dirName.includes(w.w)) {
+  //           let delta = wordOccurenceValue / 5 * (1 + 5 * Math.pow(w.w.length / dirName.length, 2))
+  //           // let delta = wordOccurenceValue  * Math.pow(w.w.length / dirName.length, 2)
+  //           wScore += delta
+  //         } else {
+  //           wScore -= 10000
+  //         }
+  //         // the score of the occurence of a word decreases with distance from the leaf
+  //         wordOccurenceValue = wordOccurenceValue / 2
+  //       }
+  //
+  //  //
+  //       if (wScore < 0) {
+  //         // w is not in the path : reject the item
+  //         // eslint-disable-next-line
+  //         continue itemLoop
+  //       }
+  //       itemScore += wScore // increase the score
+  //     }
+  //
+  //  //
+  //     if (0 < itemScore) {
+  //       item.score = itemScore
+  //       suggestions.push(item)
+  //     }
+  //   }
+  //   suggestions.sort((s1, s2) => {
+  //       return s2.score - s1.score
+  //   })
+  //   return suggestions
+  // }
+
+  // returns a ranked array of [suggestions].
+  // suggestion items are objects : {score:[number], ... (all the properties
+  //   of an item given in init(newItemsList))}
+  const _filterAndScore = function (listItems, words) {
+    const suggestions = []
+    // eslint-disable-next-line
+    itemLoop:
+    for (let item of listItems) {
+      let itemScore = 0
+      for (let w of words) {
+        let wordOccurenceValue = 0 // 52 428 800 === 2^19 * 100
+        let wScore = 0
+        let hasAlreadyOccured = false
+        for (let dirName of item.pathArray) {
+          if (dirName.includes(w.w)) {
+            // let delta = wordOccurenceValue  * Math.pow(w.w.length / dirName.length, 2)
+            let delta
+            if (hasAlreadyOccured) {
+              delta = wordOccurenceValue * (1 - w.w.length / dirName.length)
+              wordOccurenceValue = wordOccurenceValue / 2
+              wScore -= delta
+            } else {
+              wordOccurenceValue = 52428800  // 52 428 800 === 2^19 * 100
+              delta = wordOccurenceValue / 2 * (1 + w.w.length / dirName.length)
+              wScore += delta
+              wordOccurenceValue = wordOccurenceValue / 2
+              hasAlreadyOccured = true
+            }
+          } else {
+            wScore -= wordOccurenceValue
+            wordOccurenceValue = wordOccurenceValue / 2
+          }
+          // the score of the occurence of a word decreases with distance from the leaf
+          wordOccurenceValue = wordOccurenceValue / 2
+        }
+
+        if (wScore < 0) {
+          // w is not in the path : reject the item
+          // eslint-disable-next-line
+          continue itemLoop
+        }
+        itemScore += wScore // increase the score
+      }
+
+      if (itemScore > 0) {
+        item.score = itemScore
+        suggestions.push(item)
+      }
+    }
+    suggestions.sort((s1, s2) => {
+      return s2.score - s1.score
+    })
+    return suggestions
+  }
+
+  // In charge of checking if the query is augmented.
+  // If there are only new words or more preciser words (for
+  // instance "atom ele" became "atom elect neutrinos").
+  // returns {isQueryAugmented, priorizedWords}
+  // where
+  //     isQueryAugmented : Boolean
+  //     priorizedWords   : [Array] : [{w:'word'}...]
+  const _isAugmentingCurrentQuery = function (query) {
+    var priorizedWords = []
+    var isFromPreviousQuery = []
+    // check that each word of the previous query is included in a word
+    // of the new query.
+    // Included means : 'spa' is in 'backspace' : true, 'spa' is in 'separate' : false
+    for (let W of previousQuery) {
+      let isIncluded = false
+      for (let w of query) {
+        if (w.w.includes(W.w)) {
+          isIncluded = true
+          if (w.w.length !== W.w.length) {
+            w.isAugmentedWord = true
+          } else {
+            w.isNewWord = false
+          }
+        }
+      }
+      if (!isIncluded) {
+        priorizedWords = _sortQuerybyLength(query)
+        previousQuery = query
+        const isQueryAugmented = false
+        return [isQueryAugmented, priorizedWords]
+      }
+    }
+    // list the words of the new query that have been augmented
+    for (let w of query) {
+      if (w.isNewWord || w.isAugmentedWord) {
+        priorizedWords.push(w)
+      } else {
+        isFromPreviousQuery.push(w)
+      }
+    }
+    priorizedWords = _sortQuerybyLength(priorizedWords).concat(_sortQuerybyLength(isFromPreviousQuery))
+    previousQuery = query
+    return [true, priorizedWords]
+  }
+
+  // sort by decreasing length
+  const _sortQuerybyLength = function (query) {
+    query.sort(function (a, b) {
+      return (b.w.length - a.w.length)
+    })
+    return query
+  }
+
+  return {
+
+    init: (newItemsList) => {
+      list = newItemsList
+      previousQuery = []
+      previousSuggestions = newItemsList
+      for (let file of list) {
+        // file.pathArray = removeDiacritics((file.path + '/' + file.name).toLowerCase()).split('/').filter(Boolean).reverse()
+        file.pathArray = removeDiacritics((file.path + '/' + file.name).toLowerCase()).split('/').filter(Boolean)
+      }
+    },
+
+    search: function (query, maxResults) {
+      return _fuzzyWordsSearch(query, maxResults)
+    }
+
   }
 }
+/* BLOCK:END */
+module.exports = forDebugPackage()
