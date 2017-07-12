@@ -140,22 +140,27 @@ LaunchBarCtrler.init = function (newCozyClient) {
         T2 = performance.now()
         console.log('get all docs took "' + (T2 - T1) + 'ms')
         for (let row of docs.rows) {
-          if (row.doc.type === 'file') {
-            fileList.push(row.doc)
-            list.push(row.doc)
-          } else if (row.doc.type === 'directory') {
-            let fullPath = row.doc.path
+          const doc = row.doc
+          if (doc.type === 'file') {
+            fileList.push(doc)
+          } else if (doc.type === 'directory') {
+            let fullPath = doc.path
             dirDictionnary[row.id] = fullPath
+            if (fullPath.substring(0, 12) === '/.cozy_trash') {
+              continue
+            }
             // in couch, the path of a directory includes the directory name, what is
             // inconsistent with the file path wich doesn't include the filename.
             // Therefore we harmonize here by removing the dirname from the path.
-            row.doc.path = fullPath.substring(0, fullPath.lastIndexOf('/'))
-            list.push(row.doc)
+            doc.path = fullPath.substring(0, fullPath.lastIndexOf('/'))
+            list.push(doc)
           }
         }
         for (let file of fileList) {
-          // file.dirPath = dirDictionnary[file.dir_id]
           file.path = dirDictionnary[file.dir_id]
+          if (file.path.substring(0, 12) !== '/.cozy_trash') {
+            list.push(file)
+          }
         }
         T3 = performance.now()
         console.log('prepare the file paths took "' + (T3 - T2) + 'ms')
@@ -168,6 +173,5 @@ LaunchBarCtrler.init = function (newCozyClient) {
 
   T0 = performance.now()
   cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
-
 }
 export default LaunchBarCtrler
