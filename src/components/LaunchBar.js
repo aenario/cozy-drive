@@ -1,4 +1,4 @@
-/* global PouchDB pouchdbFind */
+/* global cozy */
 import autocompleteAlgolia from 'autocomplete.js'
 import fuzzyWordsSearch from '../lib/fuzzy-words-search-for-paths'
 import wordsBolderify from '../lib/words-bolderify'
@@ -22,11 +22,11 @@ import debounce from '../lib/debounce'
 const LaunchBarCtrler = {}
 const MAX_RESULTS = 15
 let cozyClient
-let T0
-let T1
-let T2
-let T3
-let T4
+// let T0
+// let T1
+// let T2
+// let T3
+// let T4
 
 LaunchBarCtrler.init = function (newCozyClient) {
   cozyClient = newCozyClient
@@ -111,67 +111,105 @@ LaunchBarCtrler.init = function (newCozyClient) {
   // ------------------------------------------------------------------
   // 4/ DATA FOR PATHS SEARCH : replicate the file doctype and then
   // prepare the list of paths for the search.
-  let
-    fileDB
+  // let
+  //   fileDB
 
   const list = []
-  const root = document.querySelector('[role=application]')
-  const data = root.dataset
+  // const root = document.querySelector('[role=application]')
+  // const data = root.dataset
   // const initialData = {
   //   cozyDomain: data.cozyDomain,
   //   cozyToken: data.cozyToken
   // }
-  window.PouchDB = PouchDB
-  window.pouchdbFind = pouchdbFind
-  cozyClient.init({
-    cozyURL: '//' + data.cozyDomain,
-    token: data.cozyToken
-  })
-
-  const replicationOptions = {
-    onError: () => { console.log('error during pouchDB replication') },
-    onComplete: () => {
+  // window.PouchDB = PouchDB
+  // window.pouchdbFind = pouchdbFind
+  // cozyClient.init({
+  //   cozyURL: '//' + data.cozyDomain,
+  //   token: data.cozyToken
+  // })
+  //
+  // const replicationOptions = {
+  //   onError: () => { console.log('error during pouchDB replication') },
+  //   onComplete: () => {
+  //     const dirDictionnary = {}
+  //     const fileList = []
+  //     fileDB = cozyClient.offline.getDatabase('io.cozy.files')
+  //     T1 = performance.now()
+  //     console.log('first replication took "' + (T1 - T0) + 'ms')
+  //     fileDB.allDocs({include_docs: true, descending: true}, function (e, docs) {
+  //       T2 = performance.now()
+  //       console.log('get all docs took "' + (T2 - T1) + 'ms')
+  //       for (let row of docs.rows) {
+  //         const doc = row.doc
+  //         if (doc.type === 'file') {
+  //           fileList.push(doc)
+  //         } else if (doc.type === 'directory') {
+  //           let fullPath = doc.path
+  //           dirDictionnary[row.id] = fullPath
+  //           if (fullPath.substring(0, 12) === '/.cozy_trash') {
+  //             continue
+  //           }
+  //           // in couch, the path of a directory includes the directory name, what is
+  //           // inconsistent with the file path wich doesn't include the filename.
+  //           // Therefore we harmonize here by removing the dirname from the path.
+  //           doc.path = fullPath.substring(0, fullPath.lastIndexOf('/'))
+  //           list.push(doc)
+  //         }
+  //       }
+  //       for (let file of fileList) {
+  //         file.path = dirDictionnary[file.dir_id]
+  //         if (file.path.substring(0, 12) !== '/.cozy_trash') {
+  //           list.push(file)
+  //         }
+  //       }
+  //       T3 = performance.now()
+  //       console.log('prepare the file paths took "' + (T3 - T2) + 'ms')
+  //       fuzzyWordsSearch.init(list)
+  //       T4 = performance.now()
+  //       console.log('init of the search took "' + (T4 - T3) + 'ms')
+  //     })
+  //   }
+  // }
+  //
+  // T0 = performance.now()
+  // cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
+  cozy.client.data.defineIndex('io.cozy.files',
+  ['_id']).then(function (idx) {
+    cozy.client.data.query(idx, {selector: {_id: {'$gt': null}}})
+    .then(function (files) {
+      // T2 = performance.now()
+      // console.log('get all docs took "' + (T2 - T1) + 'ms')
       const dirDictionnary = {}
       const fileList = []
-      fileDB = cozyClient.offline.getDatabase('io.cozy.files')
-      T1 = performance.now()
-      console.log('first replication took "' + (T1 - T0) + 'ms')
-      fileDB.allDocs({include_docs: true, descending: true}, function (e, docs) {
-        T2 = performance.now()
-        console.log('get all docs took "' + (T2 - T1) + 'ms')
-        for (let row of docs.rows) {
-          const doc = row.doc
-          if (doc.type === 'file') {
-            fileList.push(doc)
-          } else if (doc.type === 'directory') {
-            let fullPath = doc.path
-            dirDictionnary[row.id] = fullPath
-            if (fullPath.substring(0, 12) === '/.cozy_trash') {
-              continue
-            }
-            // in couch, the path of a directory includes the directory name, what is
-            // inconsistent with the file path wich doesn't include the filename.
-            // Therefore we harmonize here by removing the dirname from the path.
-            doc.path = fullPath.substring(0, fullPath.lastIndexOf('/'))
-            list.push(doc)
+      for (let doc of files) {
+        // const doc = row.doc
+        if (doc.type === 'file') {
+          fileList.push(doc)
+        } else if (doc.type === 'directory') {
+          let fullPath = doc.path
+          dirDictionnary[doc._id] = fullPath
+          if (fullPath.substring(0, 12) === '/.cozy_trash') {
+            continue
           }
+          // in couch, the path of a directory includes the directory name, what is
+          // inconsistent with the file path wich doesn't include the filename.
+          // Therefore we harmonize here by removing the dirname from the path.
+          doc.path = fullPath.substring(0, fullPath.lastIndexOf('/'))
+          list.push(doc)
         }
-        for (let file of fileList) {
-          file.path = dirDictionnary[file.dir_id]
-          if (file.path.substring(0, 12) !== '/.cozy_trash') {
-            list.push(file)
-          }
+      }
+      for (let file of fileList) {
+        file.path = dirDictionnary[file.dir_id]
+        if (file.path && file.path.substring(0, 12) !== '/.cozy_trash') {
+          list.push(file)
         }
-        T3 = performance.now()
-        console.log('prepare the file paths took "' + (T3 - T2) + 'ms')
-        fuzzyWordsSearch.init(list)
-        T4 = performance.now()
-        console.log('init of the search took "' + (T4 - T3) + 'ms')
-      })
-    }
-  }
-
-  T0 = performance.now()
-  cozyClient.offline.replicateFromCozy('io.cozy.files', replicationOptions)
+      }
+      // T3 = performance.now()
+      // console.log('prepare the file paths took "' + (T3 - T2) + 'ms')
+      fuzzyWordsSearch.init(list)
+      // T4 = performance.now()
+      // console.log('init of the search took "' + (T4 - T3) + 'ms')
+    })
+  })
 }
 export default LaunchBarCtrler
