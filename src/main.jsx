@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ------------------------------------------------------------------
   // -- BJA : fort the hacked search-bar
   // insert a hacked search field in the cozy bar
-  setTimeout(() => { LaunchBar.init(cozy.client) }, 200)
+  setTimeout(() => { LaunchBar.init(cozy.client) }, 500)
   // -- \BJA
   // ------------------------------------------------------------------
 })

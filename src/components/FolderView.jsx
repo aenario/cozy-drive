@@ -67,6 +67,14 @@ class FolderView extends Component {
     this.toggleAddFolder()
   }
 
+  componentDidMount () {
+    console.log('done !')
+    window.addEventListener('keydown', (e) => {
+      console.log('in componentDidMount', e.key)
+      console.log(this.state)
+    })
+  }
+
   render () {
     const { isTrashContext, actionMenuActive, selectionModeActive } = this.props
     const { files, selected, actionable, actions, Toolbar } = this.props

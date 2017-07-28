@@ -68,11 +68,11 @@ LaunchBarCtrler.init = function (newCozyClient) {
   }
 
   // ------------------------------------------------------------------
-  // 3/ initialisation oautocompleteAlgolia('#launch-bar-input', { hint: true }, [s
-  const autoComplete = autocompleteAlgolia('#launch-bar-input', { hint: false, openOnFocus: true, autoselect: true, debug: true }, [
+  // 3/ initialisation autocomplete
+  const autoComplete = autocompleteAlgolia('#launch-bar-input', { hint: true, openOnFocus: true, autoselect: true, debug: false }, [
     {
       source: debounce(launchSuggestions, 150),
-      key: 'fullPath',
+      displayKey: 'path',
       templates: {
         suggestion: function (suggestion) {
           let path = suggestion.path
