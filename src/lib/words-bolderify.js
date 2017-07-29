@@ -21,7 +21,7 @@ return a string of html "beginning ofstring <b>a-word-in-bold</b>rest of string.
 
 const wordsBolderify = function (query, path) {
   const normalizedPath = removeDiacritics(path.toLowerCase())
-  const words = removeDiacritics(query.toLowerCase()).split(' ').filter(Boolean)
+  const words = removeDiacritics(query.replace(/\//g, " ").toLowerCase()).split(' ').filter(Boolean)
   var boldRanges = new RangeList()
   for (let word of words) {
     let i = 0
